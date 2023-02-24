@@ -6,13 +6,13 @@
 
 Servo rightGate;
 Servo leftGate;
-int rightGatePin = 4;
-int leftGatePin = 8;
+int rightGatePin = 3;
+int leftGatePin = 9;
 double rotationAngle;
 int blackTH = 450;
 int whiteTH = 300;
 
-int spd = 175;               // Set the value of speed. Range: 0~255
+int spd = 150;               // Set the value of speed. Range: 0~255
 int timer = 1000;            // Define a timer
 int count;
 char input;
@@ -60,6 +60,22 @@ void Right(void)             //車子右轉子程式
   analogWrite(IN1, 0);
   analogWrite(IN2, 0);
   analogWrite(IN3, spd);
+  analogWrite(IN4, 0);
+} 
+
+void Left_slow(void)              //車子左轉子程式
+{
+  analogWrite(IN1, 0.5*spd);
+  analogWrite(IN2, 0);
+  analogWrite(IN3, 0.3*spd);
+  analogWrite(IN4, 0);
+} 
+
+void Right_back(void)             //車子右轉子程式
+{
+  analogWrite(IN1, 0);
+  analogWrite(IN2, spd);
+  analogWrite(IN3, 0);
   analogWrite(IN4, 0);
 } 
 
@@ -117,14 +133,18 @@ void setup()
   pinMode(11,OUTPUT);
   pinMode(10,OUTPUT);
 
-  rightGate.attach(4);
-  rightGate.write(0);
-  leftGate.attach(9);
-  leftGate.write(0);
-  // delay(500);
-  // flag = 0;
-  // // Left(); 
-  // Forward();
+  pinMode(3,OUTPUT);
+  pinMode(9,OUTPUT);
+
+ rightGate.attach(rightGatePin);
+ rightGate.write(0);
+ leftGate.attach(leftGatePin);
+ leftGate.write(0);
+  delay(500);
+  flag = 0;
+  // // // Left(); 
+  // Left(); 
+  Left();
 
 }
 
@@ -273,7 +293,7 @@ void loop() {
 
 /* -------------------------------- Line Tracking (Forward) --------------------------- */
 void loop() {
-  analogWrite(10,spd);
+  // analogWrite(10,spd);
   // Serial.print(analogRead(A3));
   // Serial.print(", ");
   // Serial.println(analogRead(A0));
@@ -284,12 +304,12 @@ void loop() {
   if(analogRead(A3) > 800 && flag == 0){
     Stop();
     delay(1000);
-    Right();
-    delay(750);
+    Right_back();
+    delay(1000);
     flag = 1;
-    Left();
+    // Left_slow();
   }
-  // Serial.println(analogRead(A0)); 
+  Serial.println(analogRead(A0)); 
   if(analogRead(A3) < 700 && flag == 1){
     lineTracking_F();
   }
