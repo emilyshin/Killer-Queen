@@ -1,50 +1,18 @@
 #include <Arduino.h>
 #define USE_TIMER_2 true
 #include <TimerInterrupt.h>
-
 #include <Servo.h>
+#include <PID_v1.h>
 
-/*
-Servo frontGate;
-Servo backGate;
-int frontGatePin = 5;
-int backGatePin = 11;
+Servo rightGate;
+Servo leftGate;
+int rightGatePin = 4;
+int leftGatePin = 3;
 double rotationAngle;
+int blackTH = 350;
+int whiteTH = 300;
 
-
-// void timeHandler(void) {
-//   rotationAngle = map(analogRead(A0), (double)0, (double)1023, 0, 180);
-//   frontGate.write(rotationAngle);
-// }
-
-void setup() {
-  Serial.begin(9600);
-  frontGate.attach(frontGatePin);
-  frontGate.write(0);
-  // ITimer2.attachInterrupt(10, timeHandler);
-}
-
-void loop() {
-  rotationAngle = map(analogRead(A0), (double)0, (double)1023, 0, 180);
-  frontGate.write(rotationAngle);
-  Serial.println(rotationAngle);
-}
-
-*/
-
-/* -------------------------------IR Sensor Testing--------------------------------- */
-
-// void setup() {
-//   Serial.begin(9600);
-// }
-
-// void loop() {
-//   Serial.println(analogRead(A0));
-// }
-
-/* -------------------------------Locomotion, Tracking Testing--------------------------------- */
-
-int spd = 100;               // Set the value of speed. Range: 0~255
+int spd = 125;               // Set the value of speed. Range: 0~255
 int timer = 1000;            // Define a timer
 int count;
 char input;
@@ -53,16 +21,6 @@ const int IN1 = 10;          //L298N IN1 pin connecting to Arduino pin 10
 const int IN2 = 11;          //L298N IN2 pin connecting to Arduino pin 11
 const int IN3 = 5;           //L298N IN3 pin connecting to Arduino pin 5
 const int IN4 = 6;           //L298N IN4 pin connecting to Arduino pin 6
-
-void setup() 
-{
-  Serial.begin(9600);     
-  pinMode(6,OUTPUT);      // Arduino for the L298N logic control
-  pinMode(5,OUTPUT);
-  pinMode(11,OUTPUT);
-  pinMode(10,OUTPUT);
-  delay(500);  
-}
 
 void Forward(void)           //車子前進子程式
 {
@@ -76,7 +34,7 @@ void Back(void)              //車子後退子程式
 {
   analogWrite(IN1, 0);
   analogWrite(IN2, spd);
-  analogWrite(IN3,0 );
+  analogWrite(IN3, 0);
   analogWrite(IN4, spd);
 } 
 
@@ -119,6 +77,93 @@ void CCWSpin(void)
   analogWrite(IN3, spd);
   analogWrite(IN4, 0);
 }
+
+void lineTracking_F(void) {
+  if(analogRead(A0) > blackTH) {
+    analogWrite(IN1, 0.3*spd);
+    analogWrite(IN2, 0);
+    analogWrite(IN3, spd);
+    analogWrite(IN4, 0);  
+  }
+  if(analogRead(A0) < whiteTH) {
+    analogWrite(IN1, spd);
+    analogWrite(IN2, 0);
+    analogWrite(IN3, 0.3*spd);
+    analogWrite(IN4, 0);
+  }
+}
+
+void lineTracking_B(void) {
+  if(analogRead(A1) > blackTH) {
+    analogWrite(IN1, 0);
+    analogWrite(IN2, spd);
+    analogWrite(IN3, 0);
+    analogWrite(IN4, 0.3*spd);
+  }
+  if(analogRead(A1) < whiteTH) {
+    analogWrite(IN1, 0);
+    analogWrite(IN2, 0.7*spd);
+    analogWrite(IN3, 0);
+    analogWrite(IN4, spd);
+  }
+}
+
+void setup() 
+{
+  Serial.begin(9600);     
+  pinMode(6,OUTPUT);      // Arduino for the L298N logic control
+  pinMode(5,OUTPUT);
+  pinMode(IN2,OUTPUT);
+  pinMode(IN1,OUTPUT);
+  rightGate.attach(rightGatePin);
+  rightGate.write(0);
+  leftGate.attach(leftGatePin);
+  leftGate.write(0);
+  delay(500);
+  Left();
+}
+
+/* --------------------------------- Servo Motor Testing ---------------------------- */
+
+// void timeHandler(void) {
+//   rotationAngle = map(analogRead(A0), (double)0, (double)1023, 0, 180);
+//   frontGate.write(rotationAngle);
+// }
+
+// void setup() {
+//   Serial.begin(9600);
+//   rightGate.attach(rightGatePin);
+//   rightGate.write(0);
+//   leftGate.attach(leftGatePin);
+//   leftGate.write(0);
+//   // ITimer2.attachInterrupt(10, timeHandler);
+// }
+
+// void loop() {
+//   delay(1000);
+//   rightGate.write(90);
+//   delay(1000);
+//   leftGate.write(90);
+//   delay(1000);
+//   rightGate.write(0);
+//   leftGate.write(0);
+// }
+
+
+/* -------------------------------IR Sensor Testing--------------------------------- */
+
+// void setup() {
+//   Serial.begin(9600);
+// }
+
+// void loop() {
+//   // Serial.print(analogRead(A0));
+//   // Serial.print(", ");
+//   // Serial.println(analogRead(A1));
+//   Serial.println(analogRead(A3));
+// }
+
+/* -------------------------------Locomotion, Tracking Testing--------------------------------- */
 
 /* (test for simple locomotion function)
 void loop() {            
@@ -221,3 +266,27 @@ void loop() {
   }
 }
 */
+
+/* -------------------------------- Line Tracking (Forward) --------------------------- */
+void loop() {
+  analogWrite(IN3, spd);
+  // delay(1000);
+  Serial.println(analogRead(A3));
+  
+  // if(analogRead(A3) < 700){
+  //   lineTracking_F();
+  //   Serial.println("I'm working!!!");
+  // }
+  // if(analogRead(A3) > 800) {
+  //   Stop();
+  //   delay(1000);
+  //   rightGate.write(90);
+  //   delay(1000);
+  //   leftGate.write(90);
+  //   delay(1000);
+  //   rightGate.write(0);
+  //   leftGate.write(0);
+  // }
+}
+
+
