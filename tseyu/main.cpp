@@ -12,7 +12,7 @@ double rotationAngle;
 int blackTH = 450;
 int whiteTH = 300;
 
-int spd = 150;               // Set the value of speed. Range: 0~255
+int spd = 175;               // Set the value of speed. Range: 0~255
 int timer = 1000;            // Define a timer
 int count;
 char input;
@@ -310,46 +310,49 @@ void loop() {
 /* -------------------------------- Line Tracking (Forward) --------------------------- */
 void loop() {
   // analogWrite(10,spd);
-  Serial.println(analogRead(A3));
+  // Serial.println(analogRead(A3));
   // Serial.print(", ");
   // Serial.println(analogRead(A0));
 
 
-  // if(analogRead(A3) < 700 && flag == 0){
-  //   lineTracking_F();
-  //   Serial.println("Smile");
-  // }
-  // if(analogRead(A3) > 800 && flag == 0){
-  //   Stop();
-  //   delay(1000);
-  //   Right_back();
-  //   delay(700);
-  //   flag = 1;
-  //   Back_fast();
-  //   delay(3000);
-  //   Forward();
-  //   delay(500);
-  //   // Left_slow();
-  // }
-  // Serial.println(analogRead(A0)); 
-  // if(analogRead(A3) < 700 && flag == 1){
-  //   lineTracking_F();
-  // }
-  // if(analogRead(A3) > 800 && flag == 1) {
-  //   Stop();
-  //   delay(1000);
-  //   rightGate.write(90);
-  //   flag = 2;
-  //   Forward();
-  //   delay(300);
-  //   lineTracking_F();
-  // }
-  // if(analogRead(A3) > 800 && flag == 2) {
-  //   Stop();
-  //   delay(1000);
-  //   leftGate.write(90);
-  //   flag = 3;
-  //   delay(1000);
-  //   Stop();
-  // }
+  if(analogRead(A3) < 700 && flag == 0){
+    lineTracking_F();
+    Serial.println("Smile");
+  }
+  if(analogRead(A3) > 800 && flag == 0){
+    Stop();
+    delay(1000);
+    Right_back();
+    delay(700);
+    flag = 1;
+    Back_fast();
+    delay(3000);
+    Forward();
+    delay(500);
+    // Left_slow();
+  }
+  Serial.println(analogRead(A0)); 
+  if(analogRead(A3) < 700 && flag == 1){
+    lineTracking_F();
+  }
+  if(analogRead(A3) > 800 && flag == 1) {
+    Stop();
+    delay(1000);
+    rightGate.write(90);
+    flag = 2;
+    Forward();
+    delay(300);
+    lineTracking_F();
+  }
+  if(analogRead(A3) < 700 && flag == 2){
+    lineTracking_F();
+  }
+  if(analogRead(A3) > 800 && flag == 2) {
+    Stop();
+    delay(1000);
+    leftGate.write(90);
+    flag = 3;
+    delay(1000);
+    Stop();
+  }
 }
