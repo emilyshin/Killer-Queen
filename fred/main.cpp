@@ -1,87 +1,95 @@
-/* -------------------- Inclution of Libraries -------------------- */
+/* -------------------- Inclusion of Libraries -------------------- */
 #include <Arduino.h>
 #define USE_TIMER_2 true
 #include <TimerInterrupt.h>
 #include <Servo.h>
 // #include <PID_v1.h>
+// #include <Metro.h>
 
 /* -------------------- Declaration -------------------- */
 Servo rightGate;
 Servo leftGate;
+Servo waving;
 
 /* -------------------- PIN location -------------------- */
 /* Servo Motors */
-const int rightGatePin      = 3;
-const int leftGatePin       = 9;
+const int rightGatePin         = 9;
+const int leftGatePin          = 3;
+const int wavingPin            = 8;
 
 /* DC Motors */
-const int IN1_rightWheel_F  = 10;          //L298N IN1 pin connecting to Arduino pin 10
-const int IN2_rightWheel_B  = 11;          //L298N IN2 pin connecting to Arduino pin 11
-const int IN3_leftWheel_F   = 5;           //L298N IN3 pin connecting to Arduino pin 5
-const int IN4_leftWheel_B   = 6;           //L298N IN4 pin connecting to Arduino pin 6
+const int IN1_rightWheel_F     = 10;          //L298N IN1 pin connecting to Arduino pin 10
+const int IN2_rightWheel_B     = 11;          //L298N IN2 pin connecting to Arduino pin 11
+const int IN3_leftWheel_F      = 5;           //L298N IN3 pin connecting to Arduino pin 5
+const int IN4_leftWheel_B      = 6;           //L298N IN4 pin connecting to Arduino pin 6
 
-/* IR Sensors*/
-// int side_front_A       = A0;
-// int side_back_B        = A1;
-// int front_left_1       = A2;
-// int front_mid_2        = A3;
-// int front_right_3      = A4;
+/* IR Sensors */
+const byte side_front_A        = A0;
+const byte side_back_B         = A8;
+const byte front_left_1        = A1;
+const byte front_mid_2         = A2;
+const byte front_right_3       = A3;
+
+/* Bumpers */
+const int bumper_1             = 30;
+const int bumper_2             = 32;
+
+/* Switches */
+const int Switch_start         = 40;
+const int Switch_changeIrFreq  = 42;
+const int Switch_changePlan    = 44;
+
+/* IR Beacon */
+const byte phototransistor     = A10;
+
+/* Ultrasonic Sensors */
+const int frontUltra_IN        = 14;
+const int frontUltra_OUT       = 15;
 
 /* -------------------- Sensors Threshold -------------------- */
-int blackTH_A = 450;
-int whiteTH_A = 300;
+int blackTH_A = 300;
+int whiteTH_A = 80;
 
-int blackTH_B;
-int whiteTH_B;
+int blackTH_B = 300;
+int whiteTH_B = 100;
 
-int blackTH_1;
-int whiteTH_1;
+int redTH_1   = 600;
+int whiteTH_1 = 550;
 
-int blackTH_2 = 800;
-int whiteTH_2 = 700;
+int redTH_2   = 650;
+int whiteTH_2 = 480;
 
-int blackTH_3;
-int whiteTH_3;
+int redTH_3   = 650;
+int whiteTH_3 = 580;
+
+/* -------------------- Setup for IR Beacon Testing -------------------- */
+int arrayForIRTesting[10] = {0,0,0,0,0,0,0,0,0,0};
+int countForIRTesting;
+int lastValueForPT;
+int valueForPT;
 
 /* -------------------- Other Constants -------------------- */
-int spd    = 175;               // Set the value of speed. Range: 0~255
-int timer  = 1000;              // Define a timer
-double rotationAngle;
-int count;
-char input;
+int spd              = 200;               // Set the value of speed. Range: 0~255
 int flag;
+int duration_us;
+int startingDistance = 10;
+int instantDistance;
 
 /* -------------------- Helper Functions -------------------- */
-void Forward(void)          
+void Forward(int speed)          
 {
-  analogWrite(IN1_rightWheel_F, spd);
+  analogWrite(IN1_rightWheel_F, speed);
   analogWrite(IN2_rightWheel_B, 0);
-  analogWrite(IN3_leftWheel_F,  spd);
-  analogWrite(IN4_leftWheel_B,  0);
-} 
-
-void Forward_slow(void)          
-{
-  analogWrite(IN1_rightWheel_F, spd*0.5);
-  analogWrite(IN2_rightWheel_B, 0);
-  analogWrite(IN3_leftWheel_F,  spd*0.5);
+  analogWrite(IN3_leftWheel_F,  speed);
   analogWrite(IN4_leftWheel_B,  0);
 }
 
-void Back(void)            
+void Back(int speed) 
 {
   analogWrite(IN1_rightWheel_F, 0);
-  analogWrite(IN2_rightWheel_B, spd);
+  analogWrite(IN2_rightWheel_B, speed);
   analogWrite(IN3_leftWheel_F,  0);
-  analogWrite(IN4_leftWheel_B,  spd);
-} 
-
-void Back_fast(void)             
-{
-  analogWrite(IN1_rightWheel_F, 0);
-  analogWrite(IN2_rightWheel_B, 255);
-  analogWrite(IN3_leftWheel_F,  0);
-  analogWrite(IN4_leftWheel_B,  255);
+  analogWrite(IN4_leftWheel_B,  speed);
 } 
 
 void Stop(void)             
@@ -92,87 +100,156 @@ void Stop(void)
   analogWrite(IN4_leftWheel_B,  0);
 }
 
-void Left(void)             
+void TurnLeft_Forward(int fasterWheel, int slowerWheel)             
 {
-  analogWrite(IN1_rightWheel_F, spd);
+  analogWrite(IN1_rightWheel_F, fasterWheel);
   analogWrite(IN2_rightWheel_B, 0);
-  analogWrite(IN3_leftWheel_F,  0);
+  analogWrite(IN3_leftWheel_F,  slowerWheel);
   analogWrite(IN4_leftWheel_B,  0);
 } 
 
-void Right(void)           
+void TurnRight_Forward(int fasterWheel, int slowerWheel)            
 {
-  analogWrite(IN1_rightWheel_F, 0);
+  analogWrite(IN1_rightWheel_F, slowerWheel);
   analogWrite(IN2_rightWheel_B, 0);
-  analogWrite(IN3_leftWheel_F,  spd);
-  analogWrite(IN4_leftWheel_B,  0);
-} 
-
-void Left_slow(void)              
-{
-  analogWrite(IN1_rightWheel_F, 0.5*spd);
-  analogWrite(IN2_rightWheel_B, 0);
-  analogWrite(IN3_leftWheel_F,  0.3*spd);
-  analogWrite(IN4_leftWheel_B,  0);
-} 
-
-void Right_back(void)             
-{
-  analogWrite(IN1_rightWheel_F, 0);
-  analogWrite(IN2_rightWheel_B, 255);
-  analogWrite(IN3_leftWheel_F,  0);
-  analogWrite(IN4_leftWheel_B,  0);
-} 
-
-void CWSpin(void) 
-{
-  analogWrite(IN1_rightWheel_F, spd);
-  analogWrite(IN2_rightWheel_B, 0);
-  analogWrite(IN3_leftWheel_F,  0);
-  analogWrite(IN4_leftWheel_B,  spd);
-}
-
-void CCWSpin(void)
-{
-  analogWrite(IN1_rightWheel_F, 0);
-  analogWrite(IN2_rightWheel_B, spd);
-  analogWrite(IN3_leftWheel_F,  spd);
+  analogWrite(IN3_leftWheel_F,  fasterWheel);
   analogWrite(IN4_leftWheel_B,  0);
 }
 
-void lineTracking_F(void) {
-  if(analogRead(A0) > blackTH_A) {
-    analogWrite(IN1_rightWheel_F, 0.2*spd);
-    analogWrite(IN2_rightWheel_B, 0);
-    analogWrite(IN3_leftWheel_F,  1.1*spd);
-    analogWrite(IN4_leftWheel_B,  0);  
+void TurnLeft_Backward(int fasterWheel, int slowerWheel)             
+{
+  analogWrite(IN1_rightWheel_F, 0);
+  analogWrite(IN2_rightWheel_B, fasterWheel);
+  analogWrite(IN3_leftWheel_F,  0);
+  analogWrite(IN4_leftWheel_B,  slowerWheel);
+} 
+
+void TurnRight_Backward(int fasterWheel, int slowerWheel)    
+{
+  analogWrite(IN1_rightWheel_F, 0);
+  analogWrite(IN2_rightWheel_B, slowerWheel);
+  analogWrite(IN3_leftWheel_F,  0);
+  analogWrite(IN4_leftWheel_B,  fasterWheel);
+} 
+
+void CWSpin(int speed) 
+{
+  analogWrite(IN1_rightWheel_F, speed);
+  analogWrite(IN2_rightWheel_B, 0);
+  analogWrite(IN3_leftWheel_F,  0);
+  analogWrite(IN4_leftWheel_B,  speed);
+}
+
+void CCWSpin(int speed)
+{
+  analogWrite(IN1_rightWheel_F, 0);
+  analogWrite(IN2_rightWheel_B, speed);
+  analogWrite(IN3_leftWheel_F,  speed);
+  analogWrite(IN4_leftWheel_B,  0);
+}
+
+void lineTracking_Forward(void) 
+{
+  if(analogRead(side_front_A) > blackTH_A) {
+    TurnRight_Forward(0.7*spd, 0.2*spd);  
   }
-  if(analogRead(A0) < whiteTH_A) {
-    analogWrite(IN1_rightWheel_F, 0.8*spd);
-    analogWrite(IN2_rightWheel_B, 0);
-    analogWrite(IN3_leftWheel_F,  0.5*spd);
-    analogWrite(IN4_leftWheel_B,  0);
+  if(analogRead(side_front_A) < whiteTH_A) {
+    TurnLeft_Forward(0.8*spd, 0.5*spd);
   }
 }
 
-void lineTracking_B(void) {
-  if(analogRead(A1) > blackTH_B) {
-    analogWrite(IN1_rightWheel_F, 0);
-    analogWrite(IN2_rightWheel_B, spd);
-    analogWrite(IN3_leftWheel_F,  0);
-    analogWrite(IN4_leftWheel_B,  0.3*spd);
+void lineTracking_Center(void) 
+{
+  if(analogRead(front_mid_2) > redTH_2 || analogRead(front_left_1) > redTH_1) {
+    TurnRight_Forward(1.1*spd, 0.2*spd);
   }
-  if(analogRead(A1) < whiteTH_B) {
-    analogWrite(IN1_rightWheel_F, 0);
-    analogWrite(IN2_rightWheel_B, 0.7*spd);
-    analogWrite(IN3_leftWheel_F,  0);
-    analogWrite(IN4_leftWheel_B,  spd);
+  if(analogRead(front_mid_2) < whiteTH_2) {
+    TurnLeft_Forward(0.8*spd, 0.6*spd);
   }
+}
+
+void lineTracking_Center_ComingHome(void)
+{
+  if(analogRead(front_mid_2) > redTH_2 || analogRead(front_right_3) > redTH_3) {
+    TurnLeft_Forward(1.1*spd, 0.2*spd);
+  }
+  if(analogRead(front_mid_2) < whiteTH_2) {
+    TurnRight_Forward(0.8*spd, 0.5*spd);
+  }
+}
+
+void lineTracking_Backward(void) 
+{
+  if(analogRead(side_back_B) > blackTH_B) {
+    TurnRight_Backward(1.1*spd, 0.2*spd);
+  }
+  if(analogRead(side_back_B) < whiteTH_B) {
+    TurnLeft_Backward(0.8*spd, 0.5*spd);
+  }
+}
+
+void IRTesting(void) 
+{
+  if(countForIRTesting == 9)
+  {
+    countForIRTesting = 0;
+    valueForPT = arrayForIRTesting[0];
+  }
+
+  arrayForIRTesting[countForIRTesting] = analogRead(A10);
+
+  for(int i = 0; i < 10; i++) {
+    valueForPT = max(arrayForIRTesting[i], valueForPT);
+  }
+
+  countForIRTesting++;
+  delay(10);
+}
+
+void ultraFollowing_Pcontrol(void)
+{
+  digitalWrite(frontUltra_OUT, HIGH);
+  delay(10);
+  digitalWrite(frontUltra_OUT, LOW);
+
+  duration_us = pulseIn(frontUltra_IN, HIGH);
+  instantDistance = 0.017 * duration_us;
+
+  if(instantDistance > startingDistance){
+    TurnLeft_Forward(((instantDistance - startingDistance)/40 + 0.9)*spd, 0.6*spd);
+    delay(50);
+  }
+  if(instantDistance < startingDistance){
+    TurnRight_Forward(((startingDistance - instantDistance)/40 + 0.9)*spd, 0.6*spd);
+    delay(50);
+  }
+}
+
+void wavingMovement(void) 
+{
+  delay(500);
+  waving.write(60);
+  delay(100);
+  waving.write(120);
+  delay(100);
+  waving.write(60);
+  delay(100);
+  waving.write(120);
+  delay(100);
+  waving.write(60);
+  delay(100);
+  waving.write(120);
+  delay(100);
+  waving.write(60);
+  delay(100);
+  waving.write(120);
+  delay(500);
 }
 
 void setup() 
 {
-  Serial.begin(9600);     
+  Serial.begin(9600);
+
   /* DC Motors */
   pinMode(IN1_rightWheel_F, OUTPUT);
   pinMode(IN2_rightWheel_B, OUTPUT);
@@ -180,197 +257,169 @@ void setup()
   pinMode(IN4_leftWheel_B,  OUTPUT);      
 
   /* Servo Motors */
-  pinMode(rightGatePin,OUTPUT);
-  pinMode(leftGatePin,OUTPUT);
+  pinMode(rightGatePin, OUTPUT);
+  pinMode(leftGatePin,  OUTPUT);
+  pinMode(wavingPin,    OUTPUT);
   rightGate.attach(rightGatePin);
   rightGate.write(0);
   leftGate.attach(leftGatePin);
   leftGate.write(0);
+  waving.attach(wavingPin);
+  waving.write(90);
 
   /* IR Sensors */
-  pinMode(A0,INPUT);
-  pinMode(A1,INPUT);
-  pinMode(A2,INPUT);
-  pinMode(A3,INPUT);
-  pinMode(A4,INPUT);
-  pinMode(A5,INPUT);
-  pinMode(A6,INPUT);
-  pinMode(A7,INPUT);
+  pinMode(side_front_A, INPUT);
+  pinMode(front_left_1, INPUT);
+  pinMode(front_mid_2,  INPUT);
+  pinMode(front_right_3,INPUT);
+  pinMode(side_back_B,  INPUT);
 
+  /* Bumpers */
+  pinMode(bumper_1,INPUT);
+  pinMode(bumper_2,INPUT);
+
+  /* Switches */
+  pinMode(Switch_start        ,INPUT); // middle one
+  pinMode(Switch_changePlan   ,INPUT);
+  pinMode(Switch_changeIrFreq ,INPUT);
+
+  /* Phototransistor */
+  pinMode(phototransistor, INPUT);
+  countForIRTesting = 0;
+  lastValueForPT = 0;
+  valueForPT = 0;
+
+  /* Ultrasonic Sensors */
+  pinMode(frontUltra_IN,INPUT);
+  pinMode(frontUltra_OUT,OUTPUT);
+
+  /* the Rest */
   delay(500);
   flag = 0;
-  Left();
 }
 
-/* --------------------------------- Servo Motor Testing ---------------------------- */
-
-// void loop() {
-//   delay(1000);
-//   rightGate.write(90);
-//   delay(1000);
-//   leftGate.write(90);
-//   delay(1000);
-//   rightGate.write(0);
-//   leftGate.write(0);
-// }
-
-
-/* -------------------------------IR Sensor Testing--------------------------------- */
-
-// void loop() {
-//   // Serial.print(analogRead(A0));
-//   // Serial.print(", ");
-//   // Serial.println(analogRead(A1));
-//   Serial.println(analogRead(A3));
-// }
-
-/* -------------------------------Locomotion, Tracking Testing--------------------------------- */
-
-/* (test for simple locomotion function)
-void loop() {            
-//  count++;
-//   if(count>500){
-//     if(Serial.available()) 
-//     {
-//       input = Serial.read();
-//       Serial.println(input);
-//       count = 0;
-//     }
-    
-//     if (input == 'f'){
-//       Serial.println("forward");
-//       Forward();
-//     }
-//     else if (input == 'b'){
-//       Serial.println("backward");
-//       Back();
-//     }
-//     else if (input == 'r'){
-//       Serial.println("right");
-//       Right();
-//     }
-//     else if (input == 'l'){
-//       Serial.println("left");
-//       Left();
-//     }
-//     else if (input == 's'){
-//       Serial.println("stop");
-//       Stop();
-//     }
-//   }
-    Forward();
-    Back();
-    delay(timer);
-    Stop();
-    delay(timer);
-    Left();
-    delay(timer);
-    Right();
-    delay(timer);
-    Stop();
-    delay(timer);
-}
-*/
-
-/* (black line detected -> turn)
-void loop() {         
-  Forward();
-  if(analogRead(A0)<100 && analogRead(A1)<100) {
-    Stop();
-    delay(timer);
-    Left();
-    delay(timer*2);
-    Stop();
-    delay(timer*10);
-  }
-}
-*/
-
-/* (spinning)
-void loop() {         
-    CWSpin();
-    delay(timer*2);
-    Stop();
-    delay(timer);
-    CCWSpin();
-    delay(timer*2);
-    Stop();
-    delay(timer);
-}
-*/
-
-/* (line tracking when "BACKING OFF". For this part, comment out the setup() before)
-void setup() {
-  Serial.begin(9600);     
-  pinMode(6,OUTPUT);      
-  pinMode(5,OUTPUT);
-  pinMode(11,OUTPUT);
-  pinMode(10,OUTPUT);
-  analogWrite(IN1, 0);
-  analogWrite(IN2, 0.3*spd);
-  analogWrite(IN3, 0);
-  analogWrite(IN4, spd);
-  }
 void loop() {
-  if(analogRead(A0) > 900) {
-    analogWrite(IN1, 0);
-    analogWrite(IN2, 0.3*spd);
-    analogWrite(IN3, 0);
-    analogWrite(IN4, spd);
-  }
-  if(analogRead(A0) < 100) {
-    analogWrite(IN1, 0);
-    analogWrite(IN2, spd);
-    analogWrite(IN3, 0);
-    analogWrite(IN4, 0.3*spd);
-  }
-}
-*/
+//   Serial.print(analogRead(A0));
+//   Serial.print(", ");
+//   Serial.print(analogRead(A1));
+//   Serial.print(", ");
+//   Serial.print(analogRead(A2));
+//   Serial.print(", ");
+//   Serial.print(analogRead(A3));
+//   Serial.print(", ");
+//   Serial.println(analogRead(A8));
 
-/* -------------------------------- Line Tracking (Forward) --------------------------- */
-void loop() {
-  // analogWrite(10,spd);
-  // Serial.println(analogRead(A3));
-  // Serial.print(", ");
-  // Serial.println(analogRead(A0));
+Serial.println(flag);
 
-  if(analogRead(A3) < whiteTH_2 && flag == 0){
-    lineTracking_F();
-  }
-  if(analogRead(A3) > blackTH_2 && flag == 0){
-    Stop();
-    delay(1000);
-    Right_back();
-    delay(700);
-    flag = 1;
-    Back_fast();
-    delay(3000);
-    Forward();
-    delay(500);
-    // Left_slow();
-  }
-  Serial.println(analogRead(A0)); 
-  if(analogRead(A3) < whiteTH_2 && flag == 1){
-    lineTracking_F();
-  }
-  if(analogRead(A3) > blackTH_2 && flag == 1) {
-    Stop();
-    delay(1000);
-    rightGate.write(90);
-    flag = 2;
-    Forward();
-    delay(300);
-    lineTracking_F();
-  }
-  if(analogRead(A3) < whiteTH_2 && flag == 2){
-    lineTracking_F();
-  }
-  if(analogRead(A3) > blackTH_2 && flag == 2) {
-    Stop();
-    delay(1000);
-    leftGate.write(90);
-    flag = 3;
-    delay(1000);
-    Stop();
+  if(digitalRead(Switch_start) == 1) {
+    /* In the Studio. Flag: X */
+    if(flag == 0){
+      wavingMovement();
+      flag = 1;
+    }
+    if(flag == 1){
+      CWSpin(0.6*spd);
+      IRTesting();
+      if(valueForPT < (lastValueForPT - 100)) {
+        flag = 2;
+      } else {
+        lastValueForPT = valueForPT;
+      }
+    }
+    if(flag == 2){
+      Stop();
+      delay(1000);
+      CCWSpin(0.85*spd);
+      delay(300);
+      flag = 3;
+      Back(255);
+    }
+
+    /* Leave the Studio and Moving toward the Edge. Flag: 1X */
+    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 3){
+       Back(spd);
+       delay(700);
+       Stop();
+       delay(500);
+       Forward(spd*0.8);
+       delay(500);
+       Back(spd);
+       delay(3000);
+       Forward(spd*0.8);
+       delay(100);
+       flag = 11; 
+    }
+    if(flag == 11){
+      ultraFollowing_Pcontrol();
+      if(analogRead(side_back_B) > blackTH_B) {
+        Stop();
+        delay(500);
+        lineTracking_Center();
+        flag = 12;
+      }
+    }
+    if(flag == 12){
+      lineTracking_Center();
+      if(analogRead(side_front_A) > blackTH_A || analogRead(front_right_3) > redTH_3){
+        Stop();
+        delay(500);
+        flag = 21;
+      }
+    }  
+
+    /* At the Edge, Start Side Line Tracking, Dumping the Presses. Flag: 2X */
+    if(flag == 21){
+      TurnLeft_Backward(1.2*spd, 0.2*spd);
+      delay(1000);
+      Back(255);
+      delay(1500);
+      Forward(spd);
+      delay(500);
+      flag = 22;
+    } 
+    if(analogRead(front_mid_2) < whiteTH_3 && flag == 22){
+      lineTracking_Forward();
+    }
+    if(analogRead(front_mid_2) > redTH_3 && flag == 22) {
+      Stop();
+      delay(1000);
+      leftGate.write(90);
+      delay(1000);
+      flag = 23;
+      Forward(spd);
+      delay(500);
+      lineTracking_Forward();
+    }
+    if(flag == 23){
+      lineTracking_Forward();
+    }
+    if(analogRead(front_mid_2) > redTH_3 && flag == 23){
+      Stop();
+      delay(1000);
+      rightGate.write(90);
+      flag = 31;
+      delay(1000);
+    }
+
+    /* Start Coming Home. Flag: 3X */
+    if(flag == 31){
+      lineTracking_Backward();
+    }
+    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 31){
+      TurnRight_Forward(1.2*spd, 0);
+      flag = 32;
+      delay(500);
+    }
+    if(flag == 32){
+      lineTracking_Center_ComingHome();
+    }
+    if((analogRead(side_front_A) > blackTH_A || analogRead(front_right_3) > redTH_3) && flag == 32){
+      Forward(spd);
+      delay(500);
+      Stop();
+      delay(1000);
+      wavingMovement();
+      flag = 50;
+    }
   }
 }
