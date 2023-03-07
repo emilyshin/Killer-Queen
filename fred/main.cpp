@@ -63,7 +63,7 @@ int redTH_3   = 650;
 int whiteTH_3 = 580;
 
 /* -------------------- Setup for IR Beacon Testing -------------------- */
-int arrayForIRTesting[10] = {0,0,0,0,0,0,0,0,0,0};
+int arrayForIRTesting[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int countForIRTesting;
 int lastValueForPT;
 int valueForPT;
@@ -132,7 +132,7 @@ void TurnRight_Backward(int fasterWheel, int slowerWheel)
   analogWrite(IN4_leftWheel_B,  fasterWheel);
 } 
 
-void CWSpin(int speed) 
+void CCWSpin(int speed) 
 {
   analogWrite(IN1_rightWheel_F, speed);
   analogWrite(IN2_rightWheel_B, 0);
@@ -140,7 +140,7 @@ void CWSpin(int speed)
   analogWrite(IN4_leftWheel_B,  speed);
 }
 
-void CCWSpin(int speed)
+void CWSpin(int speed)
 {
   analogWrite(IN1_rightWheel_F, 0);
   analogWrite(IN2_rightWheel_B, speed);
@@ -190,7 +190,7 @@ void lineTracking_Backward(void)
 
 void IRTesting(void) 
 {
-  if(countForIRTesting == 9)
+  if(countForIRTesting == 14)
   {
     countForIRTesting = 0;
     valueForPT = arrayForIRTesting[0];
@@ -198,7 +198,7 @@ void IRTesting(void)
 
   arrayForIRTesting[countForIRTesting] = analogRead(A10);
 
-  for(int i = 0; i < 10; i++) {
+  for(int i = 0; i < 15; i++) {
     valueForPT = max(arrayForIRTesting[i], valueForPT);
   }
 
@@ -261,10 +261,10 @@ void setup()
   pinMode(leftGatePin,  OUTPUT);
   pinMode(wavingPin,    OUTPUT);
   rightGate.attach(rightGatePin);
-  rightGate.write(0);
   leftGate.attach(leftGatePin);
-  leftGate.write(0);
   waving.attach(wavingPin);
+  rightGate.write(0);
+  leftGate.write(0);
   waving.write(90);
 
   /* IR Sensors */
@@ -309,8 +309,6 @@ void loop() {
 //   Serial.print(", ");
 //   Serial.println(analogRead(A8));
 
-Serial.println(flag);
-
   if(digitalRead(Switch_start) == 1) {
     /* In the Studio. Flag: X */
     if(flag == 0){
@@ -320,23 +318,34 @@ Serial.println(flag);
     if(flag == 1){
       CWSpin(0.6*spd);
       IRTesting();
-      if(valueForPT < (lastValueForPT - 100)) {
+      if(valueForPT < 200){
+        Stop();
+        delay(1000);
         flag = 2;
-      } else {
-        lastValueForPT = valueForPT;
       }
     }
     if(flag == 2){
+      CWSpin(0.6*spd);
+      IRTesting();
+      if((valueForPT < lastValueForPT) && valueForPT > 900) {
+        Stop();
+        delay(1000);
+        CCWSpin(0.6*spd);
+        delay(700);
+        flag = 3;
+      } else {
+        lastValueForPT = valueForPT;
+      }    
+    }
+    if(flag == 3){
       Stop();
       delay(1000);
-      CCWSpin(0.85*spd);
-      delay(300);
-      flag = 3;
+      flag = 4;
       Back(255);
     }
 
     /* Leave the Studio and Moving toward the Edge. Flag: 1X */
-    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 3){
+    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 4){
        Back(spd);
        delay(700);
        Stop();
