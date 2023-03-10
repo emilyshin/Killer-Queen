@@ -427,11 +427,11 @@ void loop() {
     }
 
     /* Leave the Studio and Moving toward the Edge. Flag: 1X */
-    //if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 4){
-    if( flag == 4){
+    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 4){
+    //if( flag == 4){
 
-       //Back(spd); //what's the point of this
-       //delay(700);
+       Back(spd); //what's the point of this
+       delay(700);
       //  Stop();
       //  delay(500);
       //  Forward(spd*0.8);
