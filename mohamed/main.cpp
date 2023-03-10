@@ -13,21 +13,21 @@ Servo waving;
 
 /* -------------------- PIN location -------------------- */
 /* Servo Motors */
-const int rightGatePin         = 9;
-const int leftGatePin          = 3;
-const int wavingPin            = 8;
+const int wavingPin            = 10; //8
+const int rightGatePin         = 9; //9
+const int leftGatePin          = 8; //3
 
 /* DC Motors */
-const int IN1_rightWheel_F     = 10;          //L298N IN1 pin connecting to Arduino pin 10
-const int IN2_rightWheel_B     = 11;          //L298N IN2 pin connecting to Arduino pin 11
+const int IN1_rightWheel_F     = 11;          //L298N IN1 pin connecting to Arduino pin 10 //11
+const int IN2_rightWheel_B     = 12;          //L298N IN2 pin connecting to Arduino pin 11 //12
 const int IN3_leftWheel_F      = 5;           //L298N IN3 pin connecting to Arduino pin 5
 const int IN4_leftWheel_B      = 6;           //L298N IN4 pin connecting to Arduino pin 6
 
 /* IR Sensors */
 const byte side_front_A        = A0;
 const byte side_back_B         = A8;
-const byte front_left_1        = A1;
-const byte front_mid_2         = A2;
+const byte front_left_1        = A2; //A1
+const byte front_mid_2         = A1; //A2
 const byte front_right_3       = A3;
 
 /* Bumpers */
@@ -56,8 +56,8 @@ int whiteTH_B = 100;
 int redTH_1   = 600;
 int whiteTH_1 = 550;
 
-int redTH_2   = 650;
-int whiteTH_2 = 480;
+int redTH_2   = 580;
+int whiteTH_2 = 530;
 
 int redTH_3   = 650;
 int whiteTH_3 = 580;
@@ -72,10 +72,12 @@ int valueForPT;
 int spd              = 200;               // Set the value of speed. Range: 0~255
 int flag;
 int duration_us;
-int startingDistance = 10;
+int startingDistance = 8;
 int instantDistance;
 
 long total_time;
+
+long start_ultra_time;
 
 /* -------------------- Helper Functions -------------------- */
 void Forward(int speed)          
@@ -229,10 +231,6 @@ void ultraFollowing_Pcontrol(void)
 
 void wavingMovement(void) 
 {
-  delay(500);
-  waving.write(60);
-  delay(100);
-  waving.write(120);
   delay(100);
   waving.write(60);
   delay(100);
@@ -241,11 +239,15 @@ void wavingMovement(void)
   waving.write(60);
   delay(100);
   waving.write(120);
-  delay(100);
-  waving.write(60);
-  delay(100);
-  waving.write(120);
-  delay(500);
+  // delay(100);
+  // waving.write(60);
+  // delay(100);
+  // waving.write(120);
+  // delay(100);
+  // waving.write(60);
+  // delay(100);
+  // waving.write(120);
+  // delay(500);
 }
 
 void setup() 
@@ -302,17 +304,20 @@ void setup()
 }
 
 void loop() {
-//   Serial.print(analogRead(A0));
-//   Serial.print(", ");
-//   Serial.print(analogRead(A1));
-//   Serial.print(", ");
-//   Serial.print(analogRead(A2));
-//   Serial.print(", ");
-//   Serial.print(analogRead(A3));
-//   Serial.print(", ");
-//   Serial.println(analogRead(A8));
+  // Serial.print(analogRead(A0));
+  // Serial.print(", ");
+  // Serial.print(analogRead(A1));
+  // Serial.print(", ");
+  // Serial.print(analogRead(A2));
+  // Serial.print(", ");
+  // Serial.print(analogRead(A3));
+  // Serial.print(", ");
+  // Serial.println(analogRead(A8));
+  // IRTesting();
+  // Serial.println(valueForPT);
+
   total_time = millis();
-  if (total_time >= 40000 && total_time <= 41000){
+  if (total_time >= 130000 && total_time <= 131000){
     Stop();
     wavingMovement();
     flag = 100;
@@ -320,6 +325,8 @@ void loop() {
 
   if (digitalRead(Switch_start) == 0 && flag == 50){
     Stop();
+    rightGate.write(0);
+    leftGate.write(0);
     flag = 1;
   }
 
@@ -330,7 +337,7 @@ void loop() {
       flag = 1;
     }
     if(flag == 1){
-      CWSpin(0.6*spd);
+      CWSpin(0.7*spd);
       IRTesting();
       if(valueForPT < 200){
         Stop();
@@ -339,13 +346,13 @@ void loop() {
       }
     }
     if(flag == 2){
-      CWSpin(0.6*spd);
+      CWSpin(0.7*spd);
       IRTesting();
-      if((valueForPT < lastValueForPT) && valueForPT > 900) {
+      if(/*(valueForPT < lastValueForPT) && valueForPT > 900*/ valueForPT > 950) {
         Stop();
         delay(1000);
-        CCWSpin(0.6*spd);
-        delay(700);
+        // CCWSpin(0.6*spd);
+        // delay(700);
         flag = 3;
       } else {
         lastValueForPT = valueForPT;
@@ -369,12 +376,14 @@ void loop() {
       //  Back(spd);
       //  delay(3000);
        Forward(spd*0.8);
+       start_ultra_time = total_time;
        delay(100);
        flag = 11; 
     }
     if(flag == 11){
       ultraFollowing_Pcontrol();
-      if(analogRead(side_back_B) > blackTH_B) {
+      // if(analogRead(side_back_B) > blackTH_B) {
+      if (total_time - start_ultra_time >= 4000){
         Stop();
         delay(500);
         lineTracking_Center();
@@ -432,7 +441,7 @@ void loop() {
       lineTracking_Backward();
     }
     if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 31){
-      TurnRight_Forward(1.2*spd, 0);
+      TurnRight_Forward(1*spd, 0);
       flag = 32;
       delay(500);
     }
@@ -441,7 +450,7 @@ void loop() {
     }
     if((analogRead(side_front_A) > blackTH_A || analogRead(front_right_3) > redTH_3) && flag == 32){
       Forward(spd);
-      delay(1000);
+      delay(750);
       Stop();
       delay(1000);
       wavingMovement();
