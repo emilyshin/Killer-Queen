@@ -59,7 +59,7 @@ int whiteTH_1 = 550;
 int redTH_2   = 580;
 int whiteTH_2 = 530;
 
-int redTH_3   = 650;
+int redTH_3   = 630; //680
 int whiteTH_3 = 580;
 
 /* -------------------- Setup for IR Beacon Testing -------------------- */
@@ -78,6 +78,7 @@ int instantDistance;
 long total_time;
 
 long start_ultra_time;
+long safety_time;
 long start_corner;
 
 /* -------------------- Helper Functions -------------------- */
@@ -160,10 +161,10 @@ void lineTracking_Forward(void)
   //   TurnLeft_Forward((0.75 - (millis()-start_corner)/(20000*2))*spd, (0.25 + (millis()-start_corner)/(3000*2))*spd);
   // }
   if(analogRead(side_front_A) > blackTH_A) {
-    TurnRight_Forward(1.1*spd, 0.2*spd); //0.2*spd
+    TurnRight_Forward(0.7*spd, 0.2*spd); //0.2*spd
   }
   if(analogRead(side_front_A) < whiteTH_A) {
-    TurnLeft_Forward(0.8*spd, 0.6*spd); //0.8*spd 0.5*spd
+    TurnLeft_Forward(0.8*spd, 0.5*spd); //0.8*spd 0.5*spd
   }
   //Forward(spd);
 }
@@ -174,17 +175,17 @@ void lineTracking_Center(void)
     TurnRight_Forward(1.1*spd, 0.2*spd);
   }
   if(analogRead(front_mid_2) < whiteTH_2) {
-    TurnLeft_Forward(0.8*spd, 0.6*spd);
+    TurnLeft_Forward(0.8*spd, 0.65*spd); //was 0.6
   }
 }
 
 void lineTracking_Center_ComingHome(void)
 {
   if(analogRead(front_mid_2) > redTH_2 || analogRead(front_right_3) > redTH_3) {
-    TurnLeft_Forward(1.1*spd, 0.2*spd);
+    TurnLeft_Forward(1.2*spd, 0.2*spd);
   }
   if(analogRead(front_mid_2) < whiteTH_2) {
-    TurnRight_Forward(0.8*spd, 0.6*spd);
+    TurnRight_Forward(0.8*spd, 0.5*spd);
   }
 }
 
@@ -337,6 +338,8 @@ void loop() {
   // IRTesting();
   // Serial.println(valueForPT);
 
+  
+  
   total_time = millis();
   if (total_time >= 130000 && total_time <= 131000){
     Stop();
@@ -380,7 +383,7 @@ void loop() {
       IRTesting();
       if(valueForPT < 200){
         Stop();
-        delay(1000);
+        delay(500);
         flag = 2;
       }
     }
@@ -389,7 +392,7 @@ void loop() {
       IRTesting();
       if(valueForPT < 200){
         Stop();
-        delay(1000);
+        delay(500);
         flag = 52;
       }
     }
@@ -398,10 +401,10 @@ void loop() {
       IRTesting();
       if(/*(valueForPT < lastValueForPT) && valueForPT > 900*/ valueForPT > 950) {
         Stop();
-        delay(1000);
+        delay(500);
         // CCWSpin(0.6*spd);
         // delay(700);
-        flag = 4;
+        flag = 3;
       } else {
         lastValueForPT = valueForPT;
       }    
@@ -411,10 +414,10 @@ void loop() {
       IRTesting();
       if(/*(valueForPT < lastValueForPT) && valueForPT > 900*/ valueForPT > 950) {
         Stop();
-        delay(1000);
+        delay(500);
         // CCWSpin(0.6*spd);
         // delay(700);
-        flag = 4;
+        flag = 3;
       } else {
         lastValueForPT = valueForPT;
       }    
@@ -424,14 +427,15 @@ void loop() {
       delay(750);
       flag = 4;
       Back(255);
+      safety_time = total_time;
     }
 
     /* Leave the Studio and Moving toward the Edge. Flag: 1X */
-    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 4){
-    //if( flag == 4){
+    if(flag == 4 && (total_time - safety_time >= 3000 || digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1)){
+    //if(flag == 4){
 
-       Back(spd); //what's the point of this
-       delay(700);
+       Back(255); //what's the point of this
+       delay(1000);
       //  Stop();
       //  delay(500);
       //  Forward(spd*0.8);
@@ -447,9 +451,9 @@ void loop() {
       ultraFollowing_Pcontrol();
       // if(analogRead(side_back_B) > blackTH_B) {
       
-        if (total_time - start_ultra_time >= 4000){
+        if (total_time - start_ultra_time >= 3000){
         Stop();
-        delay(500);
+        delay(300);
         lineTracking_Center();
         flag = 12;
       }
@@ -480,28 +484,38 @@ void loop() {
       lineTracking_Forward();
     }
     if(analogRead(front_mid_2) > redTH_2 && flag == 22) { //redth3
-      Stop();
-      delay(1000);
-      //leftGate.write(90);
-      delay(1000);
+      
+      // //leftGate.write(90);
+      // delay(500);
       flag = 23;
       if (digitalRead(Switch_sabotage) == 1){
         flag = 31;
+        Stop();
+        delay(400);
       }
+      else{
+      // Stop();
+      // delay(500);
       Forward(spd);
       delay(500);
       lineTracking_Forward();
+      }
     }
     if(flag == 23){
       lineTracking_Forward();
     }
     if(analogRead(front_mid_2) > redTH_2 && flag == 23){ //redth2
       Stop();
-      delay(1000);
+      delay(500);
+      Forward(spd);
+      delay(500);
+      Stop();
+      delay(200);
       leftGate.write(90);
       rightGate.write(90);
-      flag = 31;
-      delay(1000);
+      flag= 31;
+      delay(500);
+      
     }
 
     /* Start Coming Home. Flag: 3X */
@@ -509,9 +523,12 @@ void loop() {
       leftGate.write(90);
       rightGate.write(90); //dump both
       lineTracking_Backward();
+      safety_time = total_time;
     }
-    if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 31){
-      TurnRight_Forward(1*spd, 0);
+    if(flag == 31 && (total_time - safety_time >= 3000 || digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1)){
+    //if((digitalRead(bumper_1) == 1 || digitalRead(bumper_2) == 1) && flag == 31){
+      // TurnRight_Forward(1.2*spd, 0);
+      CWSpin(spd);
       flag = 32;
       delay(500);
     }
@@ -519,8 +536,8 @@ void loop() {
       lineTracking_Center_ComingHome();
     }
     if((analogRead(side_front_A) > blackTH_A || analogRead(front_right_3) > redTH_3) && flag == 32){
-      Forward(spd);
-      delay(750);
+      Forward(1.1*spd);
+      delay(550);
       Stop();
       delay(1000);
       wavingMovement();
@@ -529,4 +546,6 @@ void loop() {
       leftGate.write(0);
     }
   }
+  
+  
 }
